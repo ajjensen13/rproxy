@@ -4,7 +4,6 @@
       <settings>
         <option name="imageTag" value="gcr.io/ajensen-1993/rproxy" />
         <option name="buildCliOptions" value="" />
-        <option name="buildOnly" value="true" />
         <option name="command" value="" />
         <option name="containerName" value="rproxy" />
         <option name="entrypoint" value="" />

@@ -1,11 +1,18 @@
-FROM golang:1-alpine
-ENV GOBIN=/bin
-WORKDIR /src/app
-# [ineffectual] this allows skaffold to use buildArgs to compile without optimizations "all=-N -l" (https://skaffold.dev/docs/workflows/debug/)
-ARG GCFLAGS="-c 1"
+ARG GO_VERSION=1
+ARG ALPINE_VERSION=3.11
 
-COPY ./go.mod go.sum ./
+FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} as build
+ARG GCFLAGS="-c 1"
+ENV CGO_ENABLED=0
+ENV GO111MODULE=on
+WORKDIR /src/app
+COPY ./go.mod ./go.sum ./
 RUN go mod download
 COPY . .
+RUN go test -json ./...
+RUN go build -i -gcflags "$GCFLAGS" -o /bin/rproxy ./cmd/rproxy
 
-RUN go install -gcflags "$GCFLAGS"
+FROM alpine:${ALPINE_VERSION} as run
+ARG MAIN=rproxy
+COPY --from=build /bin/rproxy /bin/rproxy
+ENTRYPOINT /bin/rproxy

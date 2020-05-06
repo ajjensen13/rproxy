@@ -1,79 +1,47 @@
-# Default values for rproxy.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
-replicaCount: 1
-
-image:
-  repository: gcr.io/ajensen-1993/rproxy
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart version.
-  tag: ""
-
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: false
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-service:
-  type: ClusterIP
-  port: 80
-
-ingress:
-  enabled: false
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths: []
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
+global:
+  image:
+    repository: ""
+    tag: ""
+    pullPolicy: IfNotPresent
+deployments:
+- nameOverride: ""
+  replicas: 1
+  image:
+    repository: gcr.io/ajensen-1993/rproxy
+    tag: ""
+    pullPolicy: ""
+  ports:
+  - containerPort: 443
+    name: https
+    protocol: TCP
+  preemptible: true
+  priorityClassName: normal-preempting-pc
+  config:
+    mountPoint: /etc/config
+    volumeName: config-volume
+    includeGoogleApplicationCredentials: true
+    projectedSources:
+    - configMapName: rproxy-config-cm
+      configMapData:
+      - name: rproxy.json
+        jsonData:
+          domains:
+          - ajensen.net
+          - ajensen.dev
+          - teamcity.ajensen.dev
+          - pgadmin.ajensen.dev
+          routes:
+          - type: proxy
+            pattern: teamcity.ajensen.dev/
+            rule: http://teamcity-server-svc${request_uri}
+          - type: proxy
+            pattern: pgadmin.ajensen.dev/
+            rule: http://pgadmin-svc${request_uri}
+          - type: proxy
+            pattern: ajensen.dev/
+            rule: http://app-svc${request_uri}
+          - type: redirect
+            pattern: ajensen.net/
+            rule: https://ajensen.dev${request_uri}
+          bucket: rproxy.ajensen.dev
+    - secretName: rproxy-google-application-credentials-secret

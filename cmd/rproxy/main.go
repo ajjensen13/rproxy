@@ -66,7 +66,6 @@ func init() {
 
 		cache := rproxy.NewLayeredCache(
 			rproxy.NewMemCache(),
-			rproxy.NewDirCache(),
 			rproxy.NewGStorageCache(bucket),
 		)
 

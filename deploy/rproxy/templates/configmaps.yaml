@@ -1,0 +1,15 @@
+{{ range .Values.deployments -}}
+{{ range .config.projectedSources -}}
+{{ if .configMapName -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .configMapName }}
+data:
+  {{ range .configMapData -}}
+  {{ .name }}: |
+    {{ with .jsonData -}}{{ . | toJson }}{{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

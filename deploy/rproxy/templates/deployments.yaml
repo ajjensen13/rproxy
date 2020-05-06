@@ -1,0 +1,78 @@
+{{ range .Values.deployments -}}
+{{ $containerName := .nameOverride | default $.Chart.Name }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $containerName }}-deploy
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels:
+      app: {{ $containerName }}-deploy
+  template:
+    metadata:
+      labels:
+        app: {{ $containerName }}-deploy
+    spec:
+      affinity:
+        nodeAffinity:
+          {{ if .preemptible -}}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - preference:
+              matchExpressions:
+              - key: cloud.google.com/gke-preemptible
+                operator: Exists
+            weight: 50
+          {{- else -}}
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: cloud.google.com/gke-preemptible
+                operator: DoesNotExist
+          {{- end }}
+      {{ with .priorityClassName -}}
+      priorityClassName: {{ . }}
+      {{- end }}
+      containers:
+      - name: {{  $containerName }}
+        {{ with .image -}}
+        image: "{{ .repository }}{{ with default $.Values.global.image.tag .tag }}:{{ . }}{{ end }}"
+        imagePullPolicy: {{ default $.Values.global.image.pullPolicy .pullPolicy }}
+        {{- end }}
+        ports:
+        {{ range .ports -}}
+        - containerPort: {{ with .containerPort }}{{ . }}{{ end }}
+          name: {{ with .name }}{{ . }}{{ end }}
+          protocol: {{ with .protocol }}{{ . }}{{ end }}
+        {{- end}}
+        {{ with .config -}}
+        volumeMounts:
+        - mountPath: {{ .mountPoint }}
+          name: {{ .volumeName }}
+        {{- end }}
+        env:
+        {{ with .config -}}
+        - name: CONFIG_PATH
+          value: {{ .mountPoint }}
+        {{- if .includeGoogleApplicationCredentials }}
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: {{ .mountPoint }}/google_application_credentials.json
+        {{- end }}
+        {{- end }}
+      volumes:
+      {{ with .config -}}
+      - name: {{ .volumeName }}
+        projected:
+          defaultMode: 420
+          sources:
+            {{ range .projectedSources -}}
+            {{ if .configMapName -}}
+            - configMap:
+                name: {{ .configMapName }}
+            {{ else if .secretName -}}
+            - secret:
+                name: {{ .secretName }}
+            {{- end}}
+            {{- end }}
+  {{- end}}
+{{- end }}
