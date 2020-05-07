@@ -1,47 +1,42 @@
-global:
-  image:
-    repository: ""
-    tag: ""
-    pullPolicy: IfNotPresent
-deployments:
-- nameOverride: ""
-  replicas: 1
-  image:
-    repository: gcr.io/ajensen-1993/rproxy
-    tag: ""
-    pullPolicy: ""
-  ports:
-  - containerPort: 443
-    name: https
-    protocol: TCP
-  preemptible: true
-  priorityClassName: normal-preempting-pc
-  config:
-    mountPoint: /etc/config
-    volumeName: config-volume
-    includeGoogleApplicationCredentials: true
-    projectedSources:
-    - configMapName: rproxy-config-cm
-      configMapData:
-      - name: rproxy.json
-        jsonData:
-          domains:
-          - ajensen.net
-          - ajensen.dev
-          - teamcity.ajensen.dev
-          - pgadmin.ajensen.dev
-          routes:
-          - type: proxy
-            pattern: teamcity.ajensen.dev/
-            rule: http://teamcity-server-svc${request_uri}
-          - type: proxy
-            pattern: pgadmin.ajensen.dev/
-            rule: http://pgadmin-svc${request_uri}
-          - type: proxy
-            pattern: ajensen.dev/
-            rule: http://app-svc${request_uri}
-          - type: redirect
-            pattern: ajensen.net/
-            rule: https://ajensen.dev${request_uri}
-          bucket: rproxy.ajensen.dev
-    - secretName: rproxy-google-application-credentials-secret
+nameOverride: ""
+replicas: 1
+image:
+  repository: gcr.io/ajensen-1993/rproxy
+  tag: ""
+  pullPolicy: IfNotPresent
+  digest: ""
+ports:
+- containerPort: 443
+  name: https
+  protocol: TCP
+preemptible: true
+priorityClassName: normal-preempting-pc
+config:
+  mountPoint: /etc/config
+  volumeName: config-volume
+  includeGoogleApplicationCredentials: true
+  projectedSources:
+  - configMapName: rproxy-config-cm
+    configMapData:
+    - name: rproxy.json
+      jsonData:
+        domains:
+        - ajensen.net
+        - ajensen.dev
+        - teamcity.ajensen.dev
+        - pgadmin.ajensen.dev
+        routes:
+        - type: proxy
+          pattern: teamcity.ajensen.dev/
+          rule: http://teamcity-server-svc${request_uri}
+        - type: proxy
+          pattern: pgadmin.ajensen.dev/
+          rule: http://pgadmin-svc${request_uri}
+        - type: proxy
+          pattern: ajensen.dev/
+          rule: http://app-svc${request_uri}
+        - type: redirect
+          pattern: ajensen.net/
+          rule: https://ajensen.dev${request_uri}
+        bucket: rproxy.ajensen.dev
+  - secretName: rproxy-google-application-credentials-secret

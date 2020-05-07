@@ -1,4 +1,4 @@
-{{ range .Values.deployments -}}
+{{ with .Values -}}
 {{ $containerName := .nameOverride | default $.Chart.Name }}
 apiVersion: apps/v1
 kind: Deployment
@@ -36,8 +36,8 @@ spec:
       containers:
       - name: {{  $containerName }}
         {{ with .image -}}
-        image: "{{ .repository }}{{ with default $.Values.global.image.tag .tag }}:{{ . }}{{ end }}"
-        imagePullPolicy: {{ default $.Values.global.image.pullPolicy .pullPolicy }}
+        image: "{{ .repository }}{{ with .tag }}:{{ . }}{{ end }}{{ with .digest }}@{{ . }}{{ end }}"
+        imagePullPolicy: {{ default .pullPolicy }}
         {{- end }}
         ports:
         {{ range .ports -}}
