@@ -34,7 +34,7 @@ config:
           rule: http://pgadmin-svc${request_uri}
         - type: proxy
           pattern: ajensen.dev/
-          rule: http://app-svc${request_uri}
+          rule: http://ajensen-client-svc${request_uri}
         - type: redirect
           pattern: ajensen.net/
           rule: https://ajensen.dev${request_uri}
