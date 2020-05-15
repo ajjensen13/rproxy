@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"time"
 )
 
 func NewReverseProxyHandler(rw urlutil.Rewriter) http.Handler {
@@ -22,5 +23,6 @@ func NewReverseProxyHandler(rw urlutil.Rewriter) http.Handler {
 			log.Printf("rproxy: proxying from %s to %s", srcStr, des.String())
 			r.URL = des
 		},
+		FlushInterval: time.Second,
 	}
 }
