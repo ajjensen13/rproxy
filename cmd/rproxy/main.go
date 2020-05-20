@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ajjensen13/rproxy/internal/rproxy"
 )
@@ -52,6 +53,11 @@ func init() {
 			return err
 		}
 
+		log.Printf("main: hardcoded domains: %v", cfg.Domains)
+		ids := extractHostsFromRoutes(cfg)
+		log.Printf("main: inferred domains: %v", ids)
+		domains := append(cfg.Domains, ids...)
+
 		gs, err := storage.NewClient(ctx)
 		if err != nil {
 			log.Print(err)
@@ -70,7 +76,7 @@ func init() {
 		)
 
 		life.OnReady(func(ctx context.Context) error {
-			ln := rproxy.NewListener(cache, cfg.Domains)
+			ln := rproxy.NewListener(cache, domains)
 
 			switch err := http.Serve(ln, nil); err {
 			case http.ErrServerClosed:
@@ -95,6 +101,16 @@ func main() {
 	log.Print("rproxy: shut down up gracefully")
 }
 
+func extractHostsFromRoutes(cfg *Config) (hosts []string) {
+	for _, route := range cfg.Routes {
+		host, ok := hostFromPattern(route.Pattern)
+		if ok {
+			hosts = append(hosts, host)
+		}
+	}
+	return
+}
+
 func setupRoutes(cfg *Config) error {
 	for _, route := range cfg.Routes {
 		pattern := route.Pattern
@@ -113,6 +129,15 @@ func setupRoutes(cfg *Config) error {
 		}
 	}
 	return nil
+}
+
+func hostFromPattern(pattern string) (host string, ok bool) {
+	s := strings.SplitN(pattern, "/", 2)
+	if len(s) < 2 {
+		return "", false
+	}
+
+	return s[0], s[0] != ""
 }
 
 func loadConfig() (*Config, error) {

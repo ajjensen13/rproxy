@@ -20,11 +20,7 @@ config:
     configMapData:
     - name: rproxy.json
       jsonData:
-        domains:
-        - ajensen.net
-        - ajensen.dev
-        - teamcity.ajensen.dev
-        - pgadmin.ajensen.dev
+        domains: []
         routes:
         - type: proxy
           pattern: teamcity.ajensen.dev/
