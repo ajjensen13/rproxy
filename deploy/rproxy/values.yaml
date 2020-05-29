@@ -29,6 +29,9 @@ config:
           pattern: pgadmin.ajensen.dev/
           rule: http://pgadmin-svc${request_uri}
         - type: proxy
+          pattern: prototype.ajensen.dev/
+          rule: http://ajensen-client-prototype-svc${request_uri}
+        - type: proxy
           pattern: ajensen.dev/
           rule: http://ajensen-client-svc${request_uri}
         - type: proxy
