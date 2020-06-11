@@ -2,27 +2,29 @@ package rproxy
 
 import (
 	"fmt"
+	"github.com/ajjensen13/gke"
 	"github.com/ajjensen13/urlutil"
-	"log"
 	"net/http"
 )
 
-type redirectHandler urlutil.Rewriter
+type redirectHandler struct {
+	lg *gke.Logger
+	urlutil.Rewriter
+}
 
-func (h redirectHandler) ServeHTTP(wr http.ResponseWriter, r *http.Request) {
+func (h *redirectHandler) ServeHTTP(wr http.ResponseWriter, r *http.Request) {
 	src := r.URL
 	srcStr := src.String()
-	des, err := urlutil.Rewriter(h).Rewrite(src)
+	des, err := h.Rewrite(src)
 	if err != nil {
-		log.Panic(fmt.Errorf("rproxy: error redirecting from %s by rule %s: %w", srcStr, string(urlutil.Rewriter(h)), err))
-		return
+		panic(h.lg.ErrorErr(fmt.Errorf("rproxy: error redirecting from %s by rule %s: %w", srcStr, string(h.Rewriter), err)))
 	}
 
 	desStr := des.String()
-	log.Printf("rproxy: redirecting from %s to %s", srcStr, desStr)
+	h.lg.Infof("redirecting from %s to %s", srcStr, desStr)
 	http.Redirect(wr, r, desStr, http.StatusTemporaryRedirect)
 }
 
-func NewRedirectHandler(rw urlutil.Rewriter) http.Handler {
-	return redirectHandler(rw)
+func NewRedirectHandler(lg *gke.Logger, rw urlutil.Rewriter) http.Handler {
+	return &redirectHandler{lg: lg, Rewriter: rw}
 }

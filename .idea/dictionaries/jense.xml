@@ -2,6 +2,8 @@
   <dictionary name="jense">
     <words>
       <w>autocert</w>
+      <w>logc</w>
+      <w>rewriter</w>
       <w>rproxy</w>
     </words>
   </dictionary>

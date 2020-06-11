@@ -5,24 +5,25 @@ import (
 	"cloud.google.com/go/storage"
 	"context"
 	"fmt"
+	"github.com/ajjensen13/gke"
 	"golang.org/x/crypto/acme/autocert"
 	"io"
 	"io/ioutil"
-	"log"
 	"path"
 )
 
-func NewGStorageCache(bucketHandle *storage.BucketHandle) autocert.Cache {
-	return &gStorageCache{bucketHandle}
+func NewGStorageCache(lg *gke.Logger, bucketHandle *storage.BucketHandle) autocert.Cache {
+	return &gStorageCache{lg: lg, bucketHandle: bucketHandle}
 }
 
 type gStorageCache struct {
+	lg           *gke.Logger
 	bucketHandle *storage.BucketHandle
 }
 
 func (g *gStorageCache) Get(ctx context.Context, key string) ([]byte, error) {
 	obj := g.bucketHandle.Object(path.Join("golang-autocert", key))
-	log.Printf("rproxy: get %q from gstore %s/%s", key, obj.BucketName(), obj.ObjectName())
+	g.lg.Infof("get %q from gstore %s/%s", key, obj.BucketName(), obj.ObjectName())
 
 	reader, err := obj.NewReader(ctx)
 	if err == storage.ErrObjectNotExist {
@@ -44,7 +45,7 @@ func (g *gStorageCache) Get(ctx context.Context, key string) ([]byte, error) {
 
 func (g *gStorageCache) Put(ctx context.Context, key string, data []byte) (reterr error) {
 	obj := g.bucketHandle.Object(path.Join("golang-autocert", key))
-	log.Printf("gstorecache: put %d bytes at%q from gstore %s/%s", len(data), key, obj.BucketName(), obj.ObjectName())
+	g.lg.Infof("put %d bytes at%q from gstore %s/%s", len(data), key, obj.BucketName(), obj.ObjectName())
 
 	des := obj.NewWriter(ctx)
 	defer func() {

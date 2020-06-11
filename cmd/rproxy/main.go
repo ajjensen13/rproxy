@@ -45,19 +45,19 @@ func main() {
 	startupCtx, startupCancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer startupCancel()
 
-	l, cleanUpLogger := newLogger(startupCtx)
+	lg, cleanUpLogger := newLogger(startupCtx)
 	defer cleanUpLogger()
 
-	ln, cleanUpListener := newListener(startupCtx, l)
+	ln, cleanUpListener := newListener(startupCtx, lg)
 	defer cleanUpListener()
 
-	server := newServer(startupCtx, l)
+	server := newServer(startupCtx, lg)
 
 	switch err := server.Serve(ln); err {
 	case http.ErrServerClosed:
-		l.Noticef("shut down up gracefully")
+		lg.Noticef("shut down up gracefully")
 	default:
-		panic(l.WarnErr(fmt.Errorf("rproxy: shut down: %w", err)))
+		panic(lg.WarnErr(fmt.Errorf("shut down: %w", err)))
 	}
 }
 
@@ -69,61 +69,62 @@ func provideLogClient(ctx context.Context) (*gke.LogClient, func()) {
 	return lc, func() { _ = lc.Close() }
 }
 
-func provideLogger(lc *gke.LogClient, logId string) (*gke.Logger, func()) {
-	l := lc.Logger(logId)
+func provideLogger(lgc *gke.LogClient, lgId string) (*gke.Logger, func()) {
+	l := lgc.Logger(lgId)
 	return l, func() { _ = l.Flush() }
 }
 
-func provideConfig(l *gke.Logger) *Config {
+func provideConfig(lg *gke.Logger) *Config {
 	var result Config
 
 	err := config.InterfaceYaml("rproxy.yaml", &result)
 	if err != nil {
-		panic(l.ErrorErr(fmt.Errorf("rproxy: error loading config: %w", err)))
+		panic(lg.ErrorErr(fmt.Errorf("rproxy: error loading config: %w", err)))
 	}
 
-	l.Infof("provided config: %v", &result)
+	lg.Infof("provided config: %v", &result)
 	return &result
 }
 
-func provideDomains(l *gke.Logger, cfg *Config) (domains []string) {
+func provideDomains(lg *gke.Logger, cfg *Config) (domains []string) {
 	for _, route := range cfg.Routes {
 		host, ok := hostFromPattern(route.Pattern)
 		if ok {
 			domains = append(domains, host)
 		}
 	}
-	l.Infof("provided domains: %v", domains)
+	lg.Infof("provided domains: %v", domains)
 	return
 }
 
-func provideStorageClient(ctx context.Context, l *gke.Logger) (*storage.Client, func()) {
+func provideStorageClient(ctx context.Context, lg *gke.Logger) (*storage.Client, func()) {
 	result, err := storage.NewClient(ctx)
 	if err != nil {
-		panic(l.ErrorErr(err))
+		panic(lg.ErrorErr(err))
 	}
-	l.Infof("provided storage client: %v", result)
+	lg.Infof("provided storage client: %v", result)
 	return result, func() { _ = result.Close() }
 }
 
-func provideBucketHandle(l *gke.Logger, cfg *Config, gs *storage.Client) *storage.BucketHandle {
+func provideBucketHandle(lg *gke.Logger, cfg *Config, gs *storage.Client) *storage.BucketHandle {
 	result := gs.Bucket(cfg.Bucket)
-	l.Infof("provided bucket handle: %v", result)
+	lg.Infof("provided bucket handle: %v", result)
 	return result
 }
 
-func provideAutocertCache(l *gke.Logger, bucket *storage.BucketHandle) autocert.Cache {
+func provideAutocertCache(lg *gke.Logger, bucket *storage.BucketHandle) autocert.Cache {
 	result := rproxy.NewLayeredCache(
+		lg,
 		rproxy.NewMemCache(),
-		rproxy.NewGStorageCache(bucket),
+		rproxy.NewGStorageCache(lg, bucket),
 	)
-	l.Infof("provided autocert cache: %v", result)
+	lg.Infof("provided autocert cache: %v", result)
 	return result
 }
 
-func provideListener(l *gke.Logger, cache autocert.Cache, domains []string) net.Listener {
+func provideListener(lg *gke.Logger, cache autocert.Cache, domains []string) net.Listener {
 	result := rproxy.NewListener(cache, domains)
-	l.Infof("provided listener: %v", result)
+	lg.Infof("provided listener: %v", result)
 	return result
 }
 
@@ -136,7 +137,7 @@ func hostFromPattern(pattern string) (host string, ok bool) {
 	return s[0], s[0] != ""
 }
 
-func provideHandler(l *gke.Logger, cfg *Config) http.Handler {
+func provideHandler(lg *gke.Logger, cfg *Config) http.Handler {
 	for _, route := range cfg.Routes {
 		pattern := route.Pattern
 		rule := urlutil.Rewriter(route.Rule)
@@ -144,20 +145,20 @@ func provideHandler(l *gke.Logger, cfg *Config) http.Handler {
 
 		switch typ {
 		case Proxy:
-			l.Infof("registering %s rule: %s -> %s", typ, pattern, rule)
-			http.Handle(pattern, rproxy.NewReverseProxyHandler(rule))
+			lg.Infof("registering %s rule: %s -> %s", typ, pattern, rule)
+			http.Handle(pattern, rproxy.NewReverseProxyHandler(lg, rule))
 		case Redirect:
-			l.Infof("registering %s rule: %s -> %s", typ, pattern, rule)
-			http.Handle(pattern, rproxy.NewRedirectHandler(rule))
+			lg.Infof("registering %s rule: %s -> %s", typ, pattern, rule)
+			http.Handle(pattern, rproxy.NewRedirectHandler(lg, rule))
 		default:
-			panic(l.ErrorErr(fmt.Errorf("error setting up routes: invalid type: %s", typ)))
+			panic(lg.ErrorErr(fmt.Errorf("error setting up routes: invalid type: %s", typ)))
 		}
 	}
-	l.Infof("provided handler: %v", http.DefaultServeMux)
+	lg.Infof("provided handler: %v", http.DefaultServeMux)
 	return http.DefaultServeMux
 }
 
-func provideServer(l *gke.Logger, handler http.Handler, errorLog *log.Logger) *http.Server {
+func provideServer(lg *gke.Logger, handler http.Handler, errorLog *log.Logger) *http.Server {
 	result := http.Server{
 		Handler:  handler,
 		ErrorLog: errorLog,
@@ -170,10 +171,10 @@ func provideServer(l *gke.Logger, handler http.Handler, errorLog *log.Logger) *h
 		WriteTimeout:      time.Second * 15,
 	}
 
-	l.Infof("provided server: %v", &result)
+	lg.Infof("provided server: %v", &result)
 	return &result
 }
 
-func provideErrorLogger(l *gke.Logger) *log.Logger {
-	return l.StandardLogger(logging.Error)
+func provideErrorLogger(lg *gke.Logger) *log.Logger {
+	return lg.StandardLogger(logging.Error)
 }
