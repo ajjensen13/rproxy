@@ -5,7 +5,7 @@ go 1.14
 require (
 	cloud.google.com/go/logging v1.0.0
 	cloud.google.com/go/storage v1.9.0
-	github.com/ajjensen13/config v0.0.14
+	github.com/ajjensen13/config v0.0.15
 	github.com/ajjensen13/gke v0.0.12
 	github.com/ajjensen13/urlutil v0.0.1
 	github.com/google/uuid v1.1.1
