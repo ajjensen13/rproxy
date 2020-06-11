@@ -5,6 +5,7 @@
       <w>logc</w>
       <w>rewriter</w>
       <w>rproxy</w>
+      <w>wireinject</w>
     </words>
   </dictionary>
 </component>

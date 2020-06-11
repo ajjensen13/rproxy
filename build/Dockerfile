@@ -15,4 +15,4 @@ RUN go build -i -gcflags "$GCFLAGS" -o /bin/rproxy ./cmd/rproxy
 FROM alpine:${ALPINE_VERSION} as run
 ARG MAIN=rproxy
 COPY --from=build /bin/rproxy /bin/rproxy
-ENTRYPOINT /bin/rproxy
+CMD [ "/bin/rproxy" ]
