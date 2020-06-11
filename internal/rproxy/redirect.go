@@ -8,7 +8,7 @@ import (
 )
 
 type redirectHandler struct {
-	lg *gke.Logger
+	lg gke.Logger
 	urlutil.Rewriter
 }
 
@@ -25,6 +25,6 @@ func (h *redirectHandler) ServeHTTP(wr http.ResponseWriter, r *http.Request) {
 	http.Redirect(wr, r, desStr, http.StatusTemporaryRedirect)
 }
 
-func NewRedirectHandler(lg *gke.Logger, rw urlutil.Rewriter) http.Handler {
+func NewRedirectHandler(lg gke.Logger, rw urlutil.Rewriter) http.Handler {
 	return &redirectHandler{lg: lg, Rewriter: rw}
 }

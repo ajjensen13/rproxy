@@ -14,33 +14,38 @@ import (
 
 // Injectors from wire.go:
 
-func newLogger(ctx context.Context) (*gke.Logger, func()) {
-	logClient, cleanup := provideLogClient(ctx)
-	string2 := _wireStringValue
-	logger, cleanup2 := provideLogger(logClient, string2)
+func newLogger(ctx context.Context) (gke.Logger, func(), error) {
+	logClient, cleanup, err := gke.NewLogClient(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	logger, cleanup2, err := gke.NewLogger(logClient)
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
 	return logger, func() {
 		cleanup2()
 		cleanup()
-	}
+	}, nil
 }
 
-var (
-	_wireStringValue = "rproxy"
-)
-
-func newListener(ctx context.Context, l *gke.Logger) (net.Listener, func()) {
+func newListener(ctx context.Context, l gke.Logger) (net.Listener, func(), error) {
 	config := provideConfig(l)
-	client, cleanup := provideStorageClient(ctx, l)
-	bucketHandle := provideBucketHandle(l, config, client)
+	storageClient, cleanup, err := gke.NewStorageClient(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	bucketHandle := provideBucketHandle(l, config, storageClient)
 	cache := provideAutocertCache(l, bucketHandle)
 	v := provideDomains(l, config)
 	listener := provideListener(l, cache, v)
 	return listener, func() {
 		cleanup()
-	}
+	}, nil
 }
 
-func newServer(ctx context.Context, l *gke.Logger) *http.Server {
+func newServer(ctx context.Context, l gke.Logger) *http.Server {
 	config := provideConfig(l)
 	handler := provideHandler(l, config)
 	logger := provideErrorLogger(l)

@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
-func NewLayeredCache(lg *gke.Logger, layers ...autocert.Cache) autocert.Cache {
+func NewLayeredCache(lg gke.Logger, layers ...autocert.Cache) autocert.Cache {
 	return &layeredCache{lg: lg, layers: layers}
 }
 
 type layeredCache struct {
-	lg     *gke.Logger
+	lg     gke.Logger
 	layers []autocert.Cache
 }
 
@@ -68,7 +68,7 @@ func (c *layeredCache) Put(ctx context.Context, key string, val []byte) (err err
 	return doPut(ctx, c.lg, c.layers, key, val)
 }
 
-func doPut(ctx context.Context, lg *gke.Logger, layers []autocert.Cache, key string, data []byte) error {
+func doPut(ctx context.Context, lg gke.Logger, layers []autocert.Cache, key string, data []byte) error {
 	for layer, cache := range layers {
 		err := cache.Put(ctx, key, data)
 		if err != nil {

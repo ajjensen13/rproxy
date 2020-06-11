@@ -8,6 +8,7 @@ import (
 	"github.com/ajjensen13/config"
 	"github.com/ajjensen13/gke"
 	"github.com/ajjensen13/urlutil"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/acme/autocert"
 	"log"
 	"net"
@@ -45,10 +46,16 @@ func main() {
 	startupCtx, startupCancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer startupCancel()
 
-	lg, cleanUpLogger := newLogger(startupCtx)
+	lg, cleanUpLogger, err := newLogger(startupCtx)
+	if err != nil {
+		panic(err)
+	}
 	defer cleanUpLogger()
 
-	ln, cleanUpListener := newListener(startupCtx, lg)
+	ln, cleanUpListener, err := newListener(startupCtx, lg)
+	if err != nil {
+		panic(err)
+	}
 	defer cleanUpListener()
 
 	server := newServer(startupCtx, lg)
@@ -61,20 +68,7 @@ func main() {
 	}
 }
 
-func provideLogClient(ctx context.Context) (*gke.LogClient, func()) {
-	lc, err := gke.NewLogClient(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return lc, func() { _ = lc.Close() }
-}
-
-func provideLogger(lgc *gke.LogClient, lgId string) (*gke.Logger, func()) {
-	l := lgc.Logger(lgId)
-	return l, func() { _ = l.Flush() }
-}
-
-func provideConfig(lg *gke.Logger) *Config {
+func provideConfig(lg gke.Logger) *Config {
 	var result Config
 
 	err := config.InterfaceYaml("rproxy.yaml", &result)
@@ -86,7 +80,7 @@ func provideConfig(lg *gke.Logger) *Config {
 	return &result
 }
 
-func provideDomains(lg *gke.Logger, cfg *Config) (domains []string) {
+func provideDomains(lg gke.Logger, cfg *Config) (domains []string) {
 	for _, route := range cfg.Routes {
 		host, ok := hostFromPattern(route.Pattern)
 		if ok {
@@ -97,34 +91,25 @@ func provideDomains(lg *gke.Logger, cfg *Config) (domains []string) {
 	return
 }
 
-func provideStorageClient(ctx context.Context, lg *gke.Logger) (*storage.Client, func()) {
-	result, err := storage.NewClient(ctx)
-	if err != nil {
-		panic(lg.ErrorErr(err))
-	}
-	lg.Infof("provided storage client: %v", result)
-	return result, func() { _ = result.Close() }
-}
-
-func provideBucketHandle(lg *gke.Logger, cfg *Config, gs *storage.Client) *storage.BucketHandle {
+func provideBucketHandle(lg gke.Logger, cfg *Config, gs gke.StorageClient) *storage.BucketHandle {
 	result := gs.Bucket(cfg.Bucket)
-	lg.Infof("provided bucket handle: %v", result)
+	lg.Infof("provided bucket handle: %v", cfg.Bucket)
 	return result
 }
 
-func provideAutocertCache(lg *gke.Logger, bucket *storage.BucketHandle) autocert.Cache {
+func provideAutocertCache(lg gke.Logger, bucket *storage.BucketHandle) autocert.Cache {
 	result := rproxy.NewLayeredCache(
 		lg,
 		rproxy.NewMemCache(),
 		rproxy.NewGStorageCache(lg, bucket),
 	)
-	lg.Infof("provided autocert cache: %v", result)
+	lg.Infof("provided autocert cache")
 	return result
 }
 
-func provideListener(lg *gke.Logger, cache autocert.Cache, domains []string) net.Listener {
+func provideListener(lg gke.Logger, cache autocert.Cache, domains []string) net.Listener {
 	result := rproxy.NewListener(cache, domains)
-	lg.Infof("provided listener: %v", result)
+	lg.Infof("provided listener")
 	return result
 }
 
@@ -137,7 +122,7 @@ func hostFromPattern(pattern string) (host string, ok bool) {
 	return s[0], s[0] != ""
 }
 
-func provideHandler(lg *gke.Logger, cfg *Config) http.Handler {
+func provideHandler(lg gke.Logger, cfg *Config) http.Handler {
 	for _, route := range cfg.Routes {
 		pattern := route.Pattern
 		rule := urlutil.Rewriter(route.Rule)
@@ -154,11 +139,11 @@ func provideHandler(lg *gke.Logger, cfg *Config) http.Handler {
 			panic(lg.ErrorErr(fmt.Errorf("error setting up routes: invalid type: %s", typ)))
 		}
 	}
-	lg.Infof("provided handler: %v", http.DefaultServeMux)
+	lg.Infof("provided handler")
 	return http.DefaultServeMux
 }
 
-func provideServer(lg *gke.Logger, handler http.Handler, errorLog *log.Logger) *http.Server {
+func provideServer(lg gke.Logger, handler http.Handler, errorLog *log.Logger) *http.Server {
 	result := http.Server{
 		Handler:  handler,
 		ErrorLog: errorLog,
@@ -166,15 +151,18 @@ func provideServer(lg *gke.Logger, handler http.Handler, errorLog *log.Logger) *
 			ctx, _ := gke.Alive()
 			return ctx
 		},
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			return context.WithValue(ctx, rproxy.ContextKey, uuid.New().String())
+		},
 		ReadHeaderTimeout: time.Second * 3,
 		ReadTimeout:       time.Second * 15,
 		WriteTimeout:      time.Second * 15,
 	}
 
-	lg.Infof("provided server: %v", &result)
+	lg.Infof("provided server")
 	return &result
 }
 
-func provideErrorLogger(lg *gke.Logger) *log.Logger {
+func provideErrorLogger(lg gke.Logger) *log.Logger {
 	return lg.StandardLogger(logging.Error)
 }

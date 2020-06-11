@@ -26,14 +26,14 @@ import (
 	"net/http"
 )
 
-func newLogger(ctx context.Context) (*gke.Logger, func()) {
-	panic(wire.Build(wire.Value("rproxy"), provideLogger, provideLogClient))
+func newLogger(ctx context.Context) (gke.Logger, func(), error) {
+	panic(wire.Build(gke.NewLogClient, gke.NewLogger))
 }
 
-func newListener(ctx context.Context, l *gke.Logger) (net.Listener, func()) {
-	panic(wire.Build(provideListener, provideAutocertCache, provideBucketHandle, provideStorageClient, provideDomains, provideConfig))
+func newListener(ctx context.Context, l gke.Logger) (net.Listener, func(), error) {
+	panic(wire.Build(provideListener, provideAutocertCache, provideBucketHandle, gke.NewStorageClient, provideDomains, provideConfig))
 }
 
-func newServer(ctx context.Context, l *gke.Logger) *http.Server {
+func newServer(ctx context.Context, l gke.Logger) *http.Server {
 	panic(wire.Build(provideServer, provideErrorLogger, provideHandler, provideConfig))
 }

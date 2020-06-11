@@ -12,12 +12,12 @@ import (
 	"path"
 )
 
-func NewGStorageCache(lg *gke.Logger, bucketHandle *storage.BucketHandle) autocert.Cache {
+func NewGStorageCache(lg gke.Logger, bucketHandle *storage.BucketHandle) autocert.Cache {
 	return &gStorageCache{lg: lg, bucketHandle: bucketHandle}
 }
 
 type gStorageCache struct {
-	lg           *gke.Logger
+	lg           gke.Logger
 	bucketHandle *storage.BucketHandle
 }
 
