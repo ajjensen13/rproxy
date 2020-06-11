@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rproxy-config-cm
+data:
+  rproxy.yaml: |
+    routes:
+    - type: proxy
+      pattern: teamcity.ajensen.dev/
+      rule: http://teamcity-server-svc${request_uri}
+    - type: proxy
+      pattern: pgadmin.ajensen.dev/
+      rule: http://pgadmin-svc${request_uri}
+    - type: proxy
+      pattern: prototype.ajensen.dev/
+      rule: http://ajensen-client-prototype-svc${request_uri}
+    - type: proxy
+      pattern: ajensen.dev/
+      rule: http://ajensen-client-svc${request_uri}
+    - type: proxy
+      pattern: rproxy.ajensen.dev/
+      rule: http://rproxy-svc${request_uri}
+    - type: redirect
+      pattern: ajensen.net/
+      rule: https://ajensen.dev${request_uri}
+    bucket: rproxy.ajensen.dev
