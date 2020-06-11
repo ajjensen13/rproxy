@@ -18,6 +18,9 @@ data:
       pattern: ajensen.dev/
       rule: http://ajensen-client-svc${request_uri}
     - type: proxy
+      pattern: ajensen-server.ajensen.dev/
+      rule: http://ajensen-server-svc${request_uri}
+    - type: proxy
       pattern: rproxy.ajensen.dev/
       rule: http://rproxy-svc${request_uri}
     - type: redirect
