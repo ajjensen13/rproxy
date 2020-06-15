@@ -1,5 +1,3 @@
-// +build wireinject
-
 /*
 Copyright © 2020 A. Jensen <jensen.aaro@gmail.com>
 
@@ -16,7 +14,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-
 package main
 
 import (
@@ -26,11 +23,9 @@ import (
 	"github.com/ajjensen13/config"
 	"github.com/ajjensen13/gke"
 	"github.com/ajjensen13/urlutil"
-	"github.com/google/wire"
 	"golang.org/x/crypto/acme/autocert"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -60,51 +55,21 @@ type Route struct {
 	Rule string `json:"rule"`
 }
 
-const (
-	shutdownGracePeriod = time.Second * 15
-)
-
 func main() {
-	lg, cleanUpLogger, err := newLogger(context.Background())
+	lg, cleanUpLogger, err := gke.NewLogger(context.Background())
 	if err != nil {
 		panic(err)
 	}
 	defer cleanUpLogger()
 
-	logStartingInfo(lg)
+	gke.LogEnv(lg)
+	gke.LogMetadata(lg)
 
-	ctx, _ := gke.Alive()
-	shutdownCtx := func() context.Context {
-		result, cancel := context.WithCancel(context.Background())
-		go func() {
-			defer cancel()
+	gke.Do(func(ctx context.Context) error {
+		return listenAndServe(ctx, lg)
+	})
 
-			<-ctx.Done()
-			lg.Infof("alive context has been cancelled. beginning %v shutdown grace period", shutdownGracePeriod)
-
-			<-time.After(shutdownGracePeriod)
-			lg.Infof("shutdown grace period has elapsed.", shutdownGracePeriod)
-		}()
-		return result
-	}()
-	err = listenAndServe(ctx, lg)
-	<-shutdownCtx.Done() // Wait for shutdownGracePeriod to elapse
-	lg.Noticef("shut down complete.")
-
-	if err != nil {
-		panic(err)
-	}
-}
-
-func logStartingInfo(lg gke.Logger) {
-	lg.Noticef("starting up.")
-	lg.Infof("env: %v", os.Environ())
-	gce := gke.OnGCE()
-	lg.Infof("OnGCE() = %v", gce)
-	if gce {
-		lg.Infof("gke.ProjectID() = %v", gke.ProjectID())
-		lg.Infof("gke.InstanceName() = %v", gke.InstanceName())
-	}
+	<-gke.AfterAliveContext(time.Second * 10).Done()
 }
 
 func listenAndServe(ctx context.Context, lg gke.Logger) error {
@@ -120,20 +85,13 @@ func listenAndServe(ctx context.Context, lg gke.Logger) error {
 	}
 	defer cleanupServer()
 
-	go func() {
-		<-ctx.Done()
-		lg.Infof("shutting down the server")
-		_ = server.Shutdown(context.Background())
-		lg.Infof("server shut down")
-	}()
-
 	lg.Infof("serving")
 	switch err := server.Serve(ln); err {
 	case http.ErrServerClosed:
 		lg.Infof("shut down up gracefully")
 		return nil
 	default:
-		return lg.WarnErr(fmt.Errorf("shut down: %w", err))
+		return lg.WarningErr(fmt.Errorf("shut down: %w", err))
 	}
 }
 
@@ -208,16 +166,4 @@ func provideHandler(lg gke.Logger, cfg *Config) http.Handler {
 	}
 	lg.Infof("provided handler: %v", cfg.Routes)
 	return http.DefaultServeMux
-}
-
-func newLogger(ctx context.Context) (gke.Logger, func(), error) {
-	panic(wire.Build(gke.NewLogClient, gke.NewLogger))
-}
-
-func newListener(ctx context.Context, l gke.Logger) (net.Listener, func(), error) {
-	panic(wire.Build(provideListener, provideAutocertCache, provideBucketHandle, gke.NewStorageClient, provideDomains, provideConfig))
-}
-
-func newServer(ctx context.Context, l gke.Logger) (*http.Server, func(), error) {
-	panic(wire.Build(gke.NewServer, provideHandler, provideConfig))
 }

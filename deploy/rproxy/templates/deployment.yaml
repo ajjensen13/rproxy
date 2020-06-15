@@ -5,9 +5,9 @@ metadata:
   labels:
     {{- include "rproxy.labels" . | nindent 4 }}
 spec:
-{{- if not .Values.autoscaling.enabled }}
+  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-{{- end }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "rproxy.selectorLabels" . | nindent 6 }}
@@ -16,32 +16,34 @@ spec:
     {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
-    {{- end }}
+        {{- end }}
       labels:
         {{- include "rproxy.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.imagePullSecrets }}
+        {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       serviceAccountName: {{ include "rproxy.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}{{ with .Values.image.tag }}:{{ . }}{{ end }}{{ with .Values.image.digest }}@{{ . }}{{ end }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-          - name: {{ .Values.service.name }}
-            containerPort: {{ .Values.service.targetPort }}
-            protocol: TCP
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          volumeMounts:
-          - mountPath: /etc/config
-            name: config-volume
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}{{ with .Values.image.tag }}:{{ . }}{{ end }}{{ with .Values.image.digest }}@{{ . }}{{ end }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: {{ .Values.service.name }}
+          containerPort: {{ .Values.service.targetPort }}
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        volumeMounts:
+        - mountPath: /etc/config
+          name: config-volume
+        - name: k8info
+          mountPath: /etc/k8info
       volumes:
       - name: config-volume
         projected:
@@ -52,6 +54,24 @@ spec:
               name: gke-config-cm
           - secret:
               name: rproxy-google-application-credentials-secret
+      - name: k8info
+        projected:
+          sources:
+          - downwardAPI:
+              items:
+              - path: pod_name
+                fieldRef:
+                  fieldPath: metadata.name
+              - path: pod_namespace
+                fieldRef:
+                  fieldPath: metadata.namespace
+              - path: pod_labels
+                fieldRef:
+                  fieldPath: metadata.labels
+          - configMap:
+              name: k8-cluster-info-cm
+          - configMap:
+              name: {{ .Chart.Name }}-container-name-cm
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
