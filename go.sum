@@ -54,6 +54,8 @@ github.com/ajjensen13/config v0.0.16 h1:08uokdBNCQ7RLoa+ZAw5y2Zk++ZquQkDd/45QtH0
 github.com/ajjensen13/config v0.0.16/go.mod h1:V80Ww3vgX/Z8GgbEzWxjEoMKLMEfwf/SR7YWtICMStw=
 github.com/ajjensen13/gke v0.0.40 h1:jCfNk9xWg7Ign4YauZr6gApqkk7CCs6qgg/9CaefQIE=
 github.com/ajjensen13/gke v0.0.40/go.mod h1:cPcc7eewS6FuGqk3kMF6bpVByUpRdAOb9tfnhVB8b+U=
+github.com/ajjensen13/gke v0.0.42 h1:wSIbto0AmHlArNiKR0tImjb/ur9u84+6QFv+VBPTNb4=
+github.com/ajjensen13/gke v0.0.42/go.mod h1:cPcc7eewS6FuGqk3kMF6bpVByUpRdAOb9tfnhVB8b+U=
 github.com/ajjensen13/urlutil v0.0.1 h1:m1kzJa8hSSjfndlpV38a6lp98U+PeM4lob8RLD5D0QM=
 github.com/ajjensen13/urlutil v0.0.1/go.mod h1:PNwNsNRyCoFJoBVKXTedt7ihmzkcpIyjf1qDz84Zj4M=
 github.com/census-instrumentation/opencensus-proto v0.2.1 h1:glEXhBS5PSLLv4IXzLA5yPRVX4bilULVyxxbrfOtDAk=
