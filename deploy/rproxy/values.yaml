@@ -80,8 +80,9 @@ tolerations: []
 
 affinity:
   nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-      - matchExpressions:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 1
+      preference:
+        matchExpressions:
         - key: cloud.google.com/gke-preemptible
           operator: Exists
