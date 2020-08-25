@@ -42,6 +42,9 @@ spec:
           protocol: TCP
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /etc/config/google_application_credentials.json
         volumeMounts:
         - mountPath: /etc/config
           name: config-volume
