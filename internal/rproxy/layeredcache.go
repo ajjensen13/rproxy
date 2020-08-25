@@ -22,18 +22,23 @@ func (c *layeredCache) Get(ctx context.Context, key string) (retval []byte, rete
 	start := time.Now()
 	defer func() {
 		duration := time.Now().Sub(start)
-		c.lg.Infof("getting key %q completed in %v [cache misses: %d, error: %v]", key, duration, misses, reterr)
+		c.lg.Defaultf("getting key %q completed in %v [cache misses: %d, error: %v]", key, duration, misses, reterr)
 	}()
 
 	defer func() {
+		if reterr == autocert.ErrCacheMiss {
+			c.lg.Defaultf("key %q not found in layered cache", key)
+			return
+		}
 		if reterr != nil {
-			panic(c.lg.ErrorErr(fmt.Errorf("error encountered while getting key %q. skipping backtracking update: %w", key, reterr)))
+			reterr = c.lg.ErrorErr(fmt.Errorf("error encountered while getting key %q. skipping backtracking update: %w", key, reterr))
+			return
 		}
 		if misses < 1 {
 			return
 		}
 
-		c.lg.Infof("performing backtracking update at key %q of %d layers", key, misses)
+		c.lg.Defaultf("performing backtracking update at key %q of %d layers", key, misses)
 		reterr = doPut(ctx, c.lg, c.layers[:misses], key, retval)
 		if reterr != nil {
 			retval = nil
@@ -52,18 +57,18 @@ func (c *layeredCache) Get(ctx context.Context, key string) (retval []byte, rete
 			return
 		}
 
-		c.lg.Infof("got %d bytes at key %q in layer %d (%T)", len(retval), key, layer, cache)
+		c.lg.Defaultf("got %d bytes at key %q in layer %d (%T)", len(retval), key, layer, cache)
 		return
 	}
 
-	return
+	return nil, autocert.ErrCacheMiss
 }
 
 func (c *layeredCache) Put(ctx context.Context, key string, val []byte) (err error) {
 	start := time.Now()
 	defer func() {
 		duration := time.Now().Sub(start)
-		c.lg.Infof("putting %d bytes at key %q completed in %v [error: %v]", len(val), key, duration, err)
+		c.lg.Defaultf("putting %d bytes at key %q completed in %v [error: %v]", len(val), key, duration, err)
 	}()
 	return doPut(ctx, c.lg, c.layers, key, val)
 }
@@ -74,7 +79,7 @@ func doPut(ctx context.Context, lg gke.Logger, layers []autocert.Cache, key stri
 		if err != nil {
 			return fmt.Errorf("rproxy: error updating cert cache layer %d (%T) for key %s: %v", layer, cache, key, err)
 		}
-		lg.Infof("put %d bytes at key %q in layer %d (%T)", len(data), key, layer, cache)
+		lg.Defaultf("put %d bytes at key %q in layer %d (%T)", len(data), key, layer, cache)
 	}
 	return nil
 }
@@ -83,7 +88,7 @@ func (c *layeredCache) Delete(ctx context.Context, key string) (err error) {
 	start := time.Now()
 	defer func() {
 		duration := time.Now().Sub(start)
-		c.lg.Infof("deleting key %q completed in %v [error: %v]", key, duration, err)
+		c.lg.Defaultf("deleting key %q completed in %v [error: %v]", key, duration, err)
 	}()
 
 	for layer, cache := range c.layers {
@@ -91,7 +96,7 @@ func (c *layeredCache) Delete(ctx context.Context, key string) (err error) {
 		if err != nil {
 			return fmt.Errorf("rproxy: error deleting cert cache layer %d for key %s: %v", layer, key, err)
 		}
-		c.lg.Infof("deleted key %q in layer %d (%T)", key, layer, cache)
+		c.lg.Defaultf("deleted key %q in layer %d (%T)", key, layer, cache)
 	}
 	return nil
 }
