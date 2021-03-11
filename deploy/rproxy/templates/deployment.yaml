@@ -40,6 +40,9 @@ spec:
         - name: {{ .Values.service.name }}
           containerPort: {{ .Values.service.targetPort }}
           protocol: TCP
+        - name: proxy
+          containerPort: 8080
+          protocol: TCP
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         env:

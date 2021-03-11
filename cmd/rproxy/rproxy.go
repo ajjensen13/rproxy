@@ -23,6 +23,7 @@ import (
 	"github.com/ajjensen13/config"
 	"github.com/ajjensen13/gke"
 	"github.com/ajjensen13/urlutil"
+	"github.com/elazarl/goproxy"
 	"golang.org/x/crypto/acme/autocert"
 	"net"
 	"net/http"
@@ -67,6 +68,12 @@ func main() {
 
 	gke.Do(func(ctx context.Context) error {
 		return listenAndServe(ctx, lg)
+	})
+
+	gke.Do(func(aliveCtx context.Context) error {
+		proxy := goproxy.NewProxyHttpServer()
+		proxy.Verbose = true
+		return http.ListenAndServe(":8080", proxy)
 	})
 
 	<-gke.AfterAliveContext(time.Second * 10).Done()

@@ -1,7 +1,4 @@
-ARG GO_VERSION=1
-ARG ALPINE_VERSION=3
-
-FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION} as build
+FROM golang:alpine as build
 ARG GCFLAGS="-c 1"
 ENV CGO_ENABLED=0
 ENV GO111MODULE=on
@@ -12,7 +9,7 @@ COPY . .
 RUN go test -json ./...
 RUN go build -i -gcflags "$GCFLAGS" -o /bin/rproxy ./cmd/rproxy
 
-FROM alpine:${ALPINE_VERSION} as run
+FROM alpine as run
 ARG MAIN=rproxy
 COPY --from=build /bin/rproxy /bin/rproxy
 CMD [ "/bin/rproxy" ]
