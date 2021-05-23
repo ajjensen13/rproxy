@@ -14,8 +14,6 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: "rproxy-deploy"
 
-priorityClassName: normal-preempting-pc
-
 podAnnotations: {}
 
 podSecurityContext: {}
@@ -72,10 +70,3 @@ nodeSelector: {}
 tolerations: []
 
 affinity:
-  nodeAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 1
-      preference:
-        matchExpressions:
-        - key: cloud.google.com/gke-preemptible
-          operator: Exists
