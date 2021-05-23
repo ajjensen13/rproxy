@@ -7,7 +7,7 @@ COPY ./go.mod ./go.sum ./
 RUN go mod download
 COPY . .
 RUN go test -json ./...
-RUN go build -i -gcflags "$GCFLAGS" -o /bin/rproxy ./cmd/rproxy
+RUN go build -gcflags "$GCFLAGS" -o /bin/rproxy ./cmd/rproxy
 
 FROM alpine as run
 ARG MAIN=rproxy
