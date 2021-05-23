@@ -65,7 +65,7 @@ func main() {
 	gke.LogEnv(lg)
 	gke.LogMetadata(lg)
 
-	gke.Do(func(ctx context.Context) error {
+	gke.Go(func(ctx context.Context) error {
 		return listenAndServe(ctx, lg)
 	})
 
